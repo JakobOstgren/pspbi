@@ -1,24 +1,38 @@
-# MasterScript.ps1
+
 # Define the folder where your scripts are stored
 $scriptFolder = ".\scripts"
 
-# Get all .ps1 files
-$scripts = Get-ChildItem -Path $scriptFolder -Filter *.ps1
+# Define categories and order
+$categories = @{
+    "Administration" = @("Log in using Entra account.ps1", "Get token using Entra account.ps1")
+}
 
-# Display menu
-Write-Host "Available Scripts:"
-for ($i = 0; $i -lt $scripts.Count; $i++) {
-    Write-Host "$($i + 1). $($scripts[$i].Name)"
+# Initialize counter
+$counter = 1
+$menu = @()
+
+Write-Host "Available Scripts:`n"
+
+foreach ($category in $categories.Keys) {
+    Write-Host "-- $category --"
+    foreach ($scriptName in $categories[$category]) {
+        $scriptPath = Join-Path $scriptFolder $scriptName
+        if (Test-Path $scriptPath) {
+            Write-Host "$counter. $scriptName"
+            $menu += $scriptPath
+            $counter++
+        }
+    }
+    Write-Host ""
 }
 
 # Prompt for selection
 $selection = Read-Host "Enter the number of the script you want to run"
 
-# Convert to integer safely
 if ([int]::TryParse($selection, [ref]$null)) {
     $selection = [int]$selection
-    if ($selection -ge 1 -and $selection -le $scripts.Count) {
-        $selectedScript = $scripts[$selection - 1].FullName
+    if ($selection -ge 1 -and $selection -le $menu.Count) {
+        $selectedScript = $menu[$selection - 1]
         Write-Host "Running $selectedScript..."
         & $selectedScript
     } else {
