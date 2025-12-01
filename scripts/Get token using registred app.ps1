@@ -2,7 +2,7 @@
 ##    [object]$parameters
 ##)
 
-$parameters = Get-Content -Path .\configuration-file.json -Raw | ConvertFrom-Json
+$parameters = Get-Content -Path ".\configuration-file.json" -Raw | ConvertFrom-Json
 
 # Connect to Azure
 Connect-AzAccount
@@ -14,8 +14,16 @@ $client_id = Get-AzKeyVaultSecret -VaultName $parameters."key-vault"."kv-name" -
 $secret_key = Get-AzKeyVaultSecret -VaultName $parameters."key-vault"."kv-name" -Name $parameters."key-vault"."key"
 
 # Construct the API-call
-$url_token = "https://login.microsoftonline.com/" + $tenant_id.SecretValueText + "/oauth2/token"
-$body_token = "grant_type=client_credentials&client_id=" + $client_id.SecretValueText + "&client_secret=" + $secret_key.SecretValueText + "&scope=openid%20offline_access&resource=https://analysis.windows.net/powerbi/api"
+
+$tenantIdPlain = (New-Object System.Net.NetworkCredential("", $tenant_id.SecretValue)).Password
+$url_token = "https://login.microsoftonline.com/$tenantIdPlain/oauth2/token"
+$body_token = @{
+    grant_type    = "client_credentials"
+    client_id     = (New-Object System.Net.NetworkCredential("", $client_id.SecretValue)).Password
+    client_secret = (New-Object System.Net.NetworkCredential("", $secret_key.SecretValue)).Password
+    scope         = "openid offline_access"
+    resource      = "https://analysis.windows.net/powerbi/api"
+}
 $headers_token = @{'Content-Type'="application/x-www-form-urlencoded"}
 
 # Get and print token
