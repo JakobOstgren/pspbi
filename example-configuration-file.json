@@ -1,0 +1,8 @@
+{
+	"key-vault": {
+        "kv-name":  "your-key-vault-name-here",
+        "tenant-id": "the-secret-name-in-azure-key-vault-containing-your-tenant-id-here",
+        "client-id": "the-secret-name-in-azure-key-vault-application-client-id",
+        "key": "the-secret-name-in-azure-key-vault-containing-your-application-secret-key"
+    }
+}
