@@ -1,8 +1,6 @@
-##param(
-##    [object]$parameters
-##)
-
-$parameters = Get-Content -Path ".\configuration-file.json" -Raw | ConvertFrom-Json
+param(
+    [object]$parameters
+)
 
 # Connect to Azure
 Connect-AzAccount
