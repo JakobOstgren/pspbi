@@ -12,6 +12,18 @@ $categories = @{
         "Get token using Entra account.ps1",
         "Get token using registred app.ps1"
     )
+    "Reports" = @(
+        "Copy report to another workspace.ps1",
+        "Show column and meaure references in a report.ps1"
+    )
+    "Semantic models" = @(
+        "List semantic models.ps1",
+        "List columns in a semantic model.ps1",
+        "Delete a semantic model.ps1"
+    )
+    "Workspaces" =@(
+        "Assign a workspace to a capacity.ps1"
+    )
 }
 
 # Initialize counter
