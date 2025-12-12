@@ -1,62 +1,104 @@
 
-# Define the folder where your scripts are stored
-$scriptFolder = ".\scripts"
+<# 
+Main launcher script
+Ensures Power BI login once; if it fails, exits. Then shows a category menu and runs the chosen script with -Parameters.
+#>
 
-# Load configuration file
-$parameters = Get-Content -Path ".\configuration-file.json" -Raw | ConvertFrom-Json
+# --- Helper: ensure login ---
+function Ensure-PowerBILogin {
+    [CmdletBinding()]
+    param(
+        [switch]$DeviceLogin,
+        [string]$TenantId,
+        [string]$ClientId,
+        [string]$ClientSecret
+    )
 
-# Define categories and order
-$categories = @{
-    "Administration" = @(
-        "Log in using Entra account.ps1",
-        "Get token using Entra account.ps1",
-        "Get token using registred app.ps1"
-    )
-    "Reports" = @(
-        "Copy report to another workspace.ps1",
-        "Show column and meaure references in a report.ps1"
-    )
-    "Semantic models" = @(
-        "List semantic models.ps1",
-        "List columns in a semantic model.ps1",
-        "Delete a semantic model.ps1"
-    )
-    "Workspaces" =@(
-        "Assign a workspace to a capacity.ps1"
-    )
-}
+    # Try token; if not available, connect and re-check
+    try {
+        Get-PowerBIAccessToken -ErrorAction Stop | Out-Null
+        return
+    } catch {
+        Write-Verbose "No active Power BI session. Connecting..."
+        if ($PSBoundParameters.ContainsKey('ClientId') -and $PSBoundParameters.ContainsKey('ClientSecret')) {
+            if (-not $TenantId) { throw "TenantId is required for service principal login." }
+            Connect-PowerBIServiceAccount -ServicePrincipal -Tenant $TenantId -ClientId $ClientId -ClientSecret $ClientSecret
+        } elseif ($DeviceLogin.IsPresent) {
+            Connect-PowerBIServiceAccount -DeviceLogin
+        } else {
+            Connect-PowerBIServiceAccount
+        }
 
-# Initialize counter
-$counter = 1
-$menu = @()
-
-foreach ($category in $categories.Keys) {
-    Write-Host "-- $category --"
-    foreach ($scriptName in $categories[$category]) {
-        $scriptPath = Join-Path $scriptFolder $scriptName
-        if (Test-Path $scriptPath) {
-            Write-Host "$counter. $scriptName"
-            $menu += $scriptPath
-            $counter++
+        try {
+            Get-PowerBIAccessToken -ErrorAction Stop | Out-Null
+        } catch {
+            throw "Failed to acquire Power BI access token even after login: $($_.Exception.Message)"
         }
     }
-    Write-Host ""
+}
+
+# --- Ensure login up front ---
+try {
+    Ensure-PowerBILogin -Verbose
+    Write-Host "✅ Power BI session verified."
+} catch {
+    Write-Error "❌ Login failed: $($_.Exception.Message)"
+    exit 1
+}
+
+# --- Config & discovery ---
+$scriptFolder = Join-Path $PSScriptRoot 'scripts'
+$configPath   = Join-Path $PSScriptRoot 'configuration-file.json'
+$parameters   = Get-Content -Path $configPath -Raw | ConvertFrom-Json
+
+# Discover .ps1 files (exclude admin/login helpers if you want)
+$items = Get-ChildItem -Path $scriptFolder -Recurse -File -Filter '*.ps1' |
+    Where-Object {
+        # Optional: skip administration helper scripts from the menu
+        $_.Name -notmatch 'Ensure-PowerBILogin|Log in using Entra account'
+    } |
+    ForEach-Object {
+        [PSCustomObject]@{
+            Category = Split-Path $_.DirectoryName -Leaf
+            Name     = $_.BaseName
+            Path     = $_.FullName
+        }
+    }
+
+if (-not $items) {
+    Write-Warning "No .ps1 scripts found under '$scriptFolder'."
+    exit 0
+}
+
+# Group by category and render the menu
+$groups  = $items | Group-Object Category
+$menu    = @()
+$counter = 1
+
+foreach ($g in $groups) {
+    $category = $g.Name
+    Write-Host "-- $category --"
+    foreach ($i in $g.Group | Sort-Object Name) {
+        Write-Host ("{0}. {1}" -f $counter, $i.Name)
+        $menu += $i.Path
+        $counter++
+    }
+    Write-Host
 }
 
 # Prompt for selection
 $selection = Read-Host "Enter the number of the script you want to run"
-
-if ([int]::TryParse($selection, [ref]$null)) {
-    $selection = [int]$selection
-    if ($selection -ge 1 -and $selection -le $menu.Count) {
-        $selectedScript = $menu[$selection - 1]
-        Write-Host "Running $selectedScript..."
-        
-        # ✅ Pass parameters to the selected script
-        & $selectedScript -parameters $parameters
-    } else {
-        Write-Host "Invalid selection: number out of range."
+[int]$parsed = 0
+if ([int]::TryParse($selection, [ref]$parsed) -and $parsed -ge 1 -and $parsed -le $menu.Count) {
+    $selectedScript = $menu[$parsed - 1]
+    Write-Host "▶ Running: $selectedScript ..."
+    try {
+        # Call operator '&' — make sure you do NOT have HTML-escaped code
+        & $selectedScript -Parameters $parameters
+    } catch {
+        Write-Error "Script failed: $($_.Exception.Message)"
+        exit 1
     }
 } else {
-    Write-Host "Invalid selection: not a number."
+    Write-Warning "Invalid selection."
 }

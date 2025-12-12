@@ -1,9 +1,3 @@
-$azure_client_id = ""
-$client_id = ""
-$client_secret = ""
-$workspace_id = ""
-$capacity_id = ""
-
 #Get authorization-token
 $url_token = "https://login.microsoftonline.com/" + $azure_client_id + "/oauth2/token"
 $body_token = "grant_type=client_credentials&client_id=" + $client_id + "&client_secret=" + $client_secret + "&scope=openid%20offline_access&resource=https://analysis.windows.net/powerbi/api"

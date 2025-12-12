@@ -1,30 +1,33 @@
-﻿Import-Module MicrosoftPowerBIMgmt
-
-# Logga in om det behövs
-if (-not (Get-PowerBIAccessToken)) {
-    Login-PowerBI
+﻿
+function PromptForObjectType($hej) {
+    Write-Host "`n$hej"
 }
 
-# === Hämta och sortera arbetsytor ===
-$workspaces = Get-PowerBIWorkspace -All | Sort-Object Name
+$objects = Get-PowerBIWorkspace -All | Sort-Object Name
 
-function Välj-Arbetsyta($promptText) {
+
+function DisplayObjectsName($promptText) {
     Write-Host "`n$promptText"
-    for ($i = 0; $i -lt $workspaces.Count; $i++) {
-        Write-Host "$($i+1): $($workspaces[$i].Name)"
+    for ($i = 0; $i -lt $objects.Count; $i++) {
+        Write-Host "$($i+1): $($objects[$i].Name)"
     }
     do {
-        $selection = Read-Host "Ange siffran för arbetsytan"
+        $selection = Read-Host "Select an itmem by providing the corresponding number and press ENTER:"
         $workspace = $workspaces[[int]$selection - 1]
         if (-not $workspace) {
-            Write-Host "Ogiltigt val, försök igen."
+            Write-Host "Invalid choice, try again."
         }
-    } until ($workspace)
-    return $workspace
+    } until ($objects)
+    return $objects
 }
 
+$objects = "blablabla"
+
+# === Hämta och sortera arbetsytor ===
+
+
 # === 1. Välj mål-arbetsyta ===
-$targetWorkspace = Välj-Arbetsyta "Välj arbetsyta dit rapporterna ska kopieras:"
+$targetWorkspace = Välj-Arbetsyta "Select the workspace you want to copy the report to:"
 
 # === 2. Välj semantisk modell ===
 $datasets = @()
@@ -50,12 +53,12 @@ $indexedDatasets = @()
 for ($i = 0; $i -lt $sortedDatasets.Count; $i++) {
     $indexedDatasets += $sortedDatasets[$i] | Select-Object @{Name="Index";Expression={$i+1}}, DatasetName, DatasetId, WorkspaceId, WorkspaceName
 }
-Write-Host "`nVälj semantisk modell som de nya rapporterna ska använda:"
+Write-Host "Select the semantic model for the new report to use:"
 foreach ($ds in $indexedDatasets) {
     Write-Host "$($ds.Index): $($ds.DatasetName) (Arbetsyta: $($ds.WorkspaceName))"
 }
 do {
-    $modelSelection = Read-Host "`nAnge siffran för den modell du vill använda och tryck enter"
+    $modelSelection = Read-Host "Select the "
     $selectedModel = $indexedDatasets | Where-Object { $_.Index -eq [int]$modelSelection }
     if (-not $selectedModel) {
         Write-Host "Ogiltigt val, försök igen."
